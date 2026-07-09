@@ -24,7 +24,7 @@
 <body class="text-slate-800 min-h-screen flex flex-col font-sans antialiased">
 
     <!-- 主容器 -->
-    <div class="flex-grow container mx-auto px-4 py-8 max-w-3xl">
+    <div id="main-content" class="flex-grow container mx-auto px-4 py-8 max-w-3xl">
         <!-- 頂部標題與連接狀態 -->
         <header class="text-center mb-6">
             <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-rose-500 to-amber-500 tracking-tight flex items-center justify-center gap-2 drop-shadow-sm">
@@ -35,7 +35,7 @@
             <!-- 線上同步狀態條 -->
             <div id="sync-status" class="inline-flex items-center gap-2 mt-4 px-4 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200 shadow-sm">
                 <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
-                <span>正在乘著雲朵連線中... ☁️</span>
+                <span id="sync-status-text">正在乘著雲朵連線中... ☁️</span>
             </div>
         </header>
 
@@ -232,6 +232,60 @@
         </div>
     </div>
 
+    <!-- ========================================== -->
+    <!-- 區塊四：外部環境 Firebase 設定介面 (GitHub / 本地端專用，在沙盒環境會自動隱藏) -->
+    <!-- ========================================== -->
+    <div id="view-setup-assistant" class="hidden container mx-auto px-4 py-8 max-w-xl">
+        <div class="bg-white rounded-3xl p-8 shadow-xl border-2 border-amber-200">
+            <div class="text-center mb-6">
+                <span class="text-6xl block mb-2">☁️</span>
+                <h2 class="text-2xl font-black text-slate-800">歡迎使用出席統計網頁！</h2>
+                <p class="text-sm text-slate-500 mt-2">
+                    由於您正在外部平台（如 GitHub Pages）執行本程式，網頁需要連接到您專屬的 **Firebase Firestore** 即時資料庫，以便進行多裝置即時同步與儲存。
+                </p>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 mb-6 space-y-2">
+                <p class="font-bold text-sm">💡 5分鐘快速免費建立資料庫：</p>
+                <ol class="list-decimal pl-4 space-y-1">
+                    <li>前往 <a href="https://console.firebase.google.com/" target="_blank" class="text-rose-600 font-bold underline">Firebase 主控台</a> 建立一個專案。</li>
+                    <li>在專案內新增「網頁應用程式 (Web App)」。</li>
+                    <li>複製網頁顯示的 <code>firebaseConfig</code> 設定 JSON 碼。</li>
+                    <li>同時於「Firestore Database」中點擊「建立資料庫」，並設定為測試模式 (Test Mode)。</li>
+                </ol>
+            </div>
+
+            <form id="setup-firebase-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">🔗 請貼上您的 Firebase Config JSON 內容：</label>
+                    <textarea id="setup-config-input" rows="7" required placeholder='例如：
+{
+  "apiKey": "AIzaSy...",
+  "authDomain": "...",
+  "projectId": "...",
+  "storageBucket": "...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}' class="w-full px-4 py-3 rounded-2xl border-2 border-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-400 text-xs font-mono text-slate-700 bg-slate-50"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">🏷️ 自訂群組專案 ID (App ID)：</label>
+                    <input type="text" id="setup-appid-input" value="attendance-party" required placeholder="例如：my-attendance-app"
+                        class="w-full px-4 py-2.5 rounded-2xl border-2 border-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-400 text-sm font-bold text-slate-700">
+                    <span class="text-[10px] text-slate-400">這會作為您在資料庫中的集合根路徑，避免與他人資料混雜。</span>
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 hover:from-pink-600 hover:to-amber-600 text-white font-extrabold py-3.5 px-4 rounded-2xl transition-all duration-300 shadow-md">
+                    🚀 儲存設定並開啟統計器
+                </button>
+            </form>
+            
+            <div class="text-center mt-6">
+                <button id="clear-saved-config-btn" class="hidden text-xs text-rose-500 underline font-bold">清除已儲存的配置重新設定</button>
+            </div>
+        </div>
+    </div>
+
+
     <!-- ===== 自訂確認對話視窗 (Modals) ===== -->
 
     <!-- 確認刪除出席登記 Modal -->
@@ -294,9 +348,103 @@
         // ==========================================
         const ORGANIZER_PASSWORD = "8888";
 
-        // 1. 初始化全域變數與環境配置
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'event-attendance-bright';
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // 環境偵測：讀取 Firebase 配置參數
+        let firebaseConfig = null;
+        let appId = 'event-attendance-bright';
+        let isConfigured = false;
+
+        // A. 優先檢測平台預覽環境注入的變數
+        try {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                firebaseConfig = JSON.parse(__firebase_config);
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'event-attendance-bright';
+                isConfigured = true;
+            }
+        } catch (e) {
+            console.warn("無法解析平台預設的 Firebase 設定：", e);
+        }
+
+        // B. 若在 GitHub / 本地環境，則從 localStorage 中尋找手動貼上的設定
+        if (!isConfigured) {
+            const savedConfig = localStorage.getItem('party_firebase_config');
+            const savedAppId = localStorage.getItem('party_app_id');
+            if (savedConfig) {
+                try {
+                    firebaseConfig = JSON.parse(savedConfig);
+                    appId = savedAppId || 'attendance-party';
+                    isConfigured = true;
+                } catch(e) {
+                    localStorage.removeItem('party_firebase_config');
+                }
+            }
+        }
+
+        // 頁面元素控制
+        const mainContent = document.getElementById('main-content');
+        const viewSetupAssistant = document.getElementById('view-setup-assistant');
+        const setupFirebaseForm = document.getElementById('setup-firebase-form');
+        const setupConfigInput = document.getElementById('setup-config-input');
+        const setupAppIdInput = document.getElementById('setup-appid-input');
+        const clearSavedConfigBtn = document.getElementById('clear-saved-config-btn');
+
+        // 如果完全沒有設定，則隱藏主體，顯示「雲端助手」並停止下方腳本執行
+        if (!isConfigured || !firebaseConfig) {
+            mainContent.classList.add('hidden');
+            viewSetupAssistant.classList.remove('hidden');
+            
+            setupFirebaseForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                let inputStr = setupConfigInput.value.trim();
+                let finalConfig = null;
+                
+                // 嘗試將物件包裹成 JSON (如果使用者貼的是帶鍵值無引號格式)
+                try {
+                    finalConfig = JSON.parse(inputStr);
+                } catch(err) {
+                    // 嘗試進行鬆散正規化解析
+                    try {
+                        // 移除 const config = 等變數名稱，僅保留括號內容
+                        if (inputStr.includes('{') && inputStr.includes('}')) {
+                            const trimmed = inputStr.substring(inputStr.indexOf('{'), inputStr.lastIndexOf('}') + 1);
+                            // 將 JavaScript 物件轉換為標準 JSON 格式
+                            const jsonFormatted = trimmed
+                                .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":') // 屬性名加雙引號
+                                .replace(/'/g, '"') // 單引號轉雙引號
+                                .replace(/,\s*}/g, '}'); // 移除尾端多餘逗號
+                            finalConfig = JSON.parse(jsonFormatted);
+                        }
+                    } catch(jsonErr) {
+                        alert("Firebase Config 格式錯誤，請確認貼上的是正確的 json 格式物件。");
+                        return;
+                    }
+                }
+
+                if (finalConfig && finalConfig.apiKey && finalConfig.projectId) {
+                    localStorage.setItem('party_firebase_config', JSON.stringify(finalConfig));
+                    localStorage.setItem('party_app_id', setupAppIdInput.value.trim() || 'attendance-party');
+                    alert("儲存成功！網頁即將重新整理啟用同步。 🎉");
+                    window.location.reload();
+                } else {
+                    alert("Firebase Config 物件缺少 apiKey 或 projectId 等必要欄位。");
+                }
+            });
+            throw new Error("網頁尚未設定 Firebase，已載入雲端設定助手。");
+        } else {
+            // 若之前有存過設定，在下方顯示清除重新配置按鈕
+            if (localStorage.getItem('party_firebase_config')) {
+                clearSavedConfigBtn.classList.remove('hidden');
+                clearSavedConfigBtn.addEventListener('click', () => {
+                    localStorage.removeItem('party_firebase_config');
+                    localStorage.removeItem('party_app_id');
+                    alert("設定已清除！即將重新載入。");
+                    window.location.reload();
+                });
+            }
+        }
+
+        // ==========================================
+        // 核心運作邏輯 (僅在 Firebase 設定健全時執行)
+        // ==========================================
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -316,6 +464,7 @@
 
         // 參加者登記區元素
         const statusEl = document.getElementById('sync-status');
+        const statusTextEl = document.getElementById('sync-status-text');
         const eventSelect = document.getElementById('event-select');
         const noEventWarning = document.getElementById('no-event-warning');
         const activeEventSection = document.getElementById('active-event-section');
@@ -374,7 +523,7 @@
             return sessionStorage.getItem('isOrganizer') === 'true';
         }
 
-        // 2. 頁籤切換邏輯 (結合主辦方密碼驗證邏輯)
+        // 2. 頁籤切換邏輯
         tabParticipantBtn.addEventListener('click', () => {
             tabParticipantBtn.className = "py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-white text-rose-600 shadow-md";
             tabOrganizerBtn.className = "py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer text-slate-600 hover:text-slate-800";
@@ -388,12 +537,10 @@
             viewParticipant.classList.add('hidden');
 
             if (isOrganizerLoggedIn()) {
-                // 已登入主辦方，直接開啟管理頁面
                 tabOrganizerBtn.className = "py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-white text-emerald-600 shadow-md";
                 viewOrganizer.classList.remove('hidden');
                 viewOrganizerLogin.classList.add('hidden');
             } else {
-                // 未登入，開啟登入畫面
                 tabOrganizerBtn.className = "py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-white text-amber-600 shadow-md";
                 viewOrganizerLogin.classList.remove('hidden');
                 viewOrganizer.classList.add('hidden');
@@ -407,15 +554,11 @@
             const enteredPassword = organizerPasswordInput.value;
 
             if (enteredPassword === ORGANIZER_PASSWORD) {
-                // 登入成功
                 sessionStorage.setItem('isOrganizer', 'true');
                 organizerPasswordInput.value = '';
                 showToast("主辦方驗證成功，歡迎回來！ ✨", "success");
-                
-                // 跳轉至主辦方管理介面
                 tabOrganizerBtn.click();
             } else {
-                // 登入失敗
                 organizerPasswordInput.value = '';
                 organizerPasswordInput.focus();
                 showToast("密碼錯誤！請再試一次 🔐", "error");
@@ -426,11 +569,10 @@
         logoutOrganizerBtn.addEventListener('click', () => {
             sessionStorage.removeItem('isOrganizer');
             showToast("已成功登出主辦方身份 🔒", "success");
-            // 跳轉回參加者登記頁
             tabParticipantBtn.click();
         });
 
-        // 4. 自訂 Toast 提示通知 (增加生動 Emoji 提示)
+        // 4. 自訂 Toast 提示通知
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
             toast.className = `flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl border-2 text-sm font-bold transition-all duration-300 transform translate-y-2 opacity-0 z-50`;
@@ -479,18 +621,12 @@
             user = currentUser;
             if (user) {
                 statusEl.className = "inline-flex items-center gap-2 mt-4 px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200 shadow-sm";
-                statusEl.innerHTML = `
-                    <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
-                    <span>同步天線已接通！(即時同步中) 🎈</span>
-                `;
+                statusTextEl.textContent = "同步天線已接通！(即時同步中) 🎈";
                 submitBtn.removeAttribute('disabled');
                 setupRealtimeSync();
             } else {
                 statusEl.className = "inline-flex items-center gap-2 mt-4 px-4 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200 shadow-sm";
-                statusEl.innerHTML = `
-                    <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
-                    <span>正在連接雲朵中... ☁️</span>
-                `;
+                statusTextEl.textContent = "正在連接雲朵中... ☁️";
                 submitBtn.setAttribute('disabled', 'true');
             }
         });
@@ -499,6 +635,7 @@
         function setupRealtimeSync() {
             if (!user) return;
 
+            // 確保路徑嚴格符合 /artifacts/{appId}/public/data/{collection} 規範 (RULE 1)
             const eventsCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'events');
             const attendanceCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendance');
 
@@ -515,11 +652,10 @@
                     });
                 });
 
-                // 按建立時間由新到舊在記憶體中排序 (避免下 orderBy 觸發索引錯誤)
+                // 按建立時間由新到舊在記憶體中排序 (避免多欄位複雜 Query)
                 loadedEvents.sort((a, b) => b.createdAt - a.createdAt);
                 events = loadedEvents;
 
-                // 決定當前要選取的活動ID
                 if (events.length > 0) {
                     if (!currentEventId || !events.some(e => e.id === currentEventId)) {
                         currentEventId = events[0].id;
@@ -533,7 +669,7 @@
                 updateMainDashboard();
             }, (error) => {
                 console.error("Sync Events Error:", error);
-                showToast("雲端同步活動資料失敗 😭", "error");
+                showToast("雲端同步活動資料失敗 😭，請檢查資料庫規則。", "error");
             });
 
             // 同步「出席登記名單」
@@ -553,7 +689,6 @@
                     });
                 });
 
-                // 按登記時間由新到舊在記憶體中排序
                 loadedAttendance.sort((a, b) => b.createdAt - a.createdAt);
                 attendances = loadedAttendance;
 
@@ -618,7 +753,6 @@
                 return;
             }
 
-            // 在記憶體中篩選目前所選活動的出席紀錄 (RULE 2)
             const filteredList = attendances.filter(item => item.eventId === currentEventId);
 
             let totalGroups = filteredList.length;
@@ -681,7 +815,6 @@
 
             lucide.createIcons();
 
-            // 為各出席項目綁定刪除確認事件
             document.querySelectorAll('.delete-att-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     pendingDeleteAttId = btn.getAttribute('data-id');
@@ -741,7 +874,6 @@
 
             lucide.createIcons();
 
-            // 綁定刪除活動按鈕事件
             document.querySelectorAll('.delete-evt-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     pendingDeleteEvtId = btn.getAttribute('data-id');
@@ -781,7 +913,6 @@
                 newEventDateInput.value = todayStr;
                 currentEventId = newDocRef.id;
 
-                // 新增完畢自動帶往登記區
                 tabParticipantBtn.click();
             } catch (error) {
                 console.error("Error creating event:", error);
@@ -842,7 +973,6 @@
 
                 showToast(`登記成功！感謝您的參與 🎉`, "success");
                 
-                // 表單復原 (保留日期、人數、班別方便連續輸入，僅清空姓名與學號)
                 nameInput.value = '';
                 sidInput.value = '';
                 nameInput.focus();
