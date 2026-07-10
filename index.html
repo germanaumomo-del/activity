@@ -34,10 +34,16 @@
                             </select>
                         </div>
                     </div>
-                    <p class="text-slate-500 flex items-center gap-2 text-sm">
-                        <i data-lucide="clock" class="w-4 h-4"></i>
-                        活動時間：<span id="display-datetime" class="font-medium text-slate-700">載入中...</span>
-                    </p>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-y-1 gap-x-4 text-slate-500 text-sm">
+                        <p class="flex items-center gap-2">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                            活動時間：<span id="display-datetime" class="font-medium text-slate-700">載入中...</span>
+                        </p>
+                        <p class="flex items-center gap-2">
+                            <i data-lucide="map-pin" class="w-4 h-4 text-indigo-500"></i>
+                            活動地點：<span id="display-location" class="font-medium text-slate-700">載入中...</span>
+                        </p>
+                    </div>
                 </div>
                 <!-- 角色切換 Tab -->
                 <div class="bg-slate-100 p-1 rounded-xl flex self-start md:self-center">
@@ -183,9 +189,14 @@
                                 <label class="block text-sm font-medium text-slate-600 mb-1">舉辦時間</label>
                                 <input type="time" id="setting-time" required class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 mb-1">活動地點</label>
+                                <input type="text" id="setting-location" required class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" placeholder="例如：禮堂 / 3A 教室">
+                            </div>
+                            
                             <div class="border-t border-slate-100 pt-4">
-                                <label class="block text-sm font-semibold text-slate-700 mb-1">活動專屬密碼修改</label>
-                                <p class="text-xs text-slate-400 mb-2">更改後，切換或重新進入此活動時需輸入新密碼</p>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">主辦方統一登入密碼修改</label>
+                                <p class="text-xs text-slate-400 mb-2">更改後，切換至主辦方時皆使用此統一密碼</p>
                                 <div class="relative">
                                     <input type="password" id="setting-password" required class="w-full pl-3 pr-10 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
                                     <button type="button" onclick="togglePasswordVisibility('setting-password')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
@@ -194,7 +205,7 @@
                                 </div>
                             </div>
                             <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm">
-                                <i data-lucide="save" class="w-4 h-4"></i> 儲存活動設定
+                                <i data-lucide="save" class="w-4 h-4"></i> 儲存活動設定與密碼
                             </button>
                         </form>
                     </div>
@@ -270,11 +281,11 @@
                 </div>
                 <h3 class="text-lg font-bold text-slate-900">進入主辦方專區</h3>
             </div>
-            <p class="text-sm text-slate-500 mb-4">此區域受到密碼保護，請輸入<strong>目前選擇活動</strong>的管理員密碼。</p>
+            <p class="text-sm text-slate-500 mb-4">此區域受到密碼保護，請輸入<strong>主辦方統一管理密碼</strong>。</p>
             
             <form onsubmit="verifyAdminPassword(event)" class="space-y-4">
                 <div class="relative">
-                    <input type="password" id="input-admin-password" required class="w-full pl-3 pr-10 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" placeholder="請輸入管理密碼">
+                    <input type="password" id="input-admin-password" required class="w-full pl-3 pr-10 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" placeholder="請輸入統一管理密碼">
                     <button type="button" onclick="togglePasswordVisibility('input-admin-password')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
                         <i data-lucide="eye" class="w-4 h-4"></i>
                     </button>
@@ -317,9 +328,8 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-600 mb-1">專屬防護密碼 <span class="text-red-500">*</span></label>
-                    <input type="password" id="new-event-password" required value="1234" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                    <p class="text-xs text-slate-400 mt-1">預設為 1234，可用於鎖定該活動之主辦方功能</p>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">活動地點 <span class="text-red-500">*</span></label>
+                    <input type="text" id="new-event-location" required class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="例如：禮堂 / 體育館">
                 </div>
 
                 <div class="flex gap-2 pt-2">
@@ -402,10 +412,11 @@
         // 全域變數定義
         let db, auth;
         let eventsList = [];       // 所有活動
-        let attendeesList = [];    // 所有出席名單 (我們在記憶體中用 selectedEventId 過濾)
+        let attendeesList = [];    // 所有出席名單
         let selectedEventId = "";  // 當前選擇的活動 ID
+        let globalConfig = { adminPassword: "1234" }; // 統一密碼，預設為 1234
         let activeRole = "participant";
-        let isAuthorized = false;  // 當前活動的主辦方是否驗證過
+        let isAuthorized = false;  // 是否已通過統一密碼驗證
         let pendingConfirmCallback = null;
 
         // 讀取應用專屬識別碼
@@ -435,7 +446,6 @@
             } else {
                 // 離線模擬初始化
                 document.getElementById('setup-banner').classList.remove('hidden');
-                // 本機離線模式建立預設模擬活動
                 generateLocalMockData();
                 renderAll();
                 showToast("本機離線模式：名單不支援多台裝置同步", "info");
@@ -450,14 +460,14 @@
                     title: "年度大會出席統計",
                     date: new Date().toISOString().split('T')[0],
                     time: "14:00",
-                    adminPassword: "1234"
+                    location: "學校大禮堂"
                 },
                 {
                     id: "local_event_2",
                     title: "期末聚餐晚會",
                     date: new Date().toISOString().split('T')[0],
                     time: "18:30",
-                    adminPassword: "1234"
+                    location: "1F 活力多功能教室"
                 }
             ];
             selectedEventId = "local_event_1";
@@ -466,6 +476,7 @@
                 { id: "att_2", eventId: "local_event_1", name: "李小美", className: "3B", studentId: "S12346", count: 1, timestamp: Date.now() - 50000 },
                 { id: "att_3", eventId: "local_event_2", name: "張小明", className: "4C", studentId: "S55443", count: 3, timestamp: Date.now() }
             ];
+            globalConfig = { adminPassword: "1234" };
         }
 
         // 初始化 Firebase 連線 (RULE 3)
@@ -475,18 +486,18 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // 進行認證優先
+                // 進行認證優先 (RULE 3)
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
 
-                // 認證成功後同步雲端 (RULE 1 / RULE 2)
+                // 認證狀態變更監聽
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         console.log("Firebase 登入成功:", user.uid);
-                        startSync();
+                        startSync(); // 確保登入完成後，才進行即時監聽數據 (RULE 3)
                     }
                 });
 
@@ -497,10 +508,25 @@
             }
         }
 
+        // 開始同步雲端數據 (RULE 1 / RULE 2)
         function startSync() {
             if (!auth.currentUser) return;
 
-            // 1. 監聽「所有活動」清單 (不加任何複合 Query 以符合 RULE 2)
+            // 1. 監聽全域統一密碼 (RULE 1)
+            const globalSettingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'globalSettings', 'config');
+            onSnapshot(globalSettingsRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    globalConfig = docSnap.data();
+                } else {
+                    // 若無預設密碼則在雲端建立一筆
+                    setDoc(globalSettingsRef, globalConfig);
+                }
+                renderAll();
+            }, (error) => {
+                console.error("讀取統一密碼設定錯誤:", error);
+            });
+
+            // 2. 監聽「所有活動」清單 (RULE 2 - 不加複合條件，獲取後本地處置)
             const eventsRef = collection(db, 'artifacts', appId, 'public', 'data', 'events');
             onSnapshot(eventsRef, (querySnapshot) => {
                 eventsList = [];
@@ -518,23 +544,22 @@
                         title: "年度大會出席統計",
                         date: new Date().toISOString().split('T')[0],
                         time: "14:00",
-                        adminPassword: "1234"
+                        location: "學校大禮堂"
                     });
-                    return; // 寫入後 onSnapshot 會再次觸發
+                    return;
                 }
 
-                // 若尚未選擇活動，或當前選擇的活動已被刪除，則預設選擇第一個
+                // 確保 selectedEventId 存在且合法
                 if (!selectedEventId || !eventsList.some(e => e.id === selectedEventId)) {
                     selectedEventId = eventsList[0].id;
-                    isAuthorized = false; // 切換活動後重置主辦方授權狀態
                 }
 
                 renderAll();
             }, (error) => {
-                console.error("同步活動錯誤:", error);
+                console.error("同步活動列表錯誤:", error);
             });
 
-            // 2. 監聽「所有出席名單」(在記憶體中依 selectedEventId 篩選 - RULE 2)
+            // 3. 監聽「所有出席名單」
             const attendanceRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendance');
             onSnapshot(attendanceRef, (querySnapshot) => {
                 attendeesList = [];
@@ -549,7 +574,7 @@
                 attendeesList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                 renderAll();
             }, (error) => {
-                console.error("同步名單錯誤:", error);
+                console.error("同步出席名單錯誤:", error);
             });
         }
 
@@ -559,7 +584,7 @@
                 title: "無活動",
                 date: "-",
                 time: "-",
-                adminPassword: "1234"
+                location: "-"
             };
         }
 
@@ -567,30 +592,36 @@
         function renderAll() {
             const currentEvent = getCurrentEvent();
             
-            // 1. 更新下拉選單
+            // 1. 更新活動選擇下拉選單
             updateEventSelectorDropdown();
 
-            // 2. 更新標題與活動資訊
+            // 2. 更新頂部標題與活動資訊
             document.getElementById('display-title').innerText = currentEvent.title;
             document.getElementById('display-datetime').innerText = `${currentEvent.date} ${currentEvent.time}`;
+            document.getElementById('display-location').innerText = currentEvent.location || "未設定地點";
 
-            // 3. 更新主辦方設定表單數值
+            // 3. 更新主辦方編輯表單數值
             const settingTitle = document.getElementById('setting-title');
             const settingDate = document.getElementById('setting-date');
             const settingTime = document.getElementById('setting-time');
+            const settingLocation = document.getElementById('setting-location');
             const settingPassword = document.getElementById('setting-password');
-            if (settingTitle && settingDate && settingTime && settingPassword) {
+            if (settingTitle && settingDate && settingTime && settingLocation && settingPassword) {
                 settingTitle.value = currentEvent.title;
                 settingDate.value = currentEvent.date;
                 settingTime.value = currentEvent.time;
-                settingPassword.value = currentEvent.adminPassword || "1234";
+                settingLocation.value = currentEvent.location || "";
+                settingPassword.value = globalConfig.adminPassword || "1234"; // 載入統一密碼
             }
 
-            // 4. 渲染統計與名單 (過濾目前活動資料)
+            // 4. 篩選目前活動專屬數據並渲染
             const filteredAttendees = attendeesList.filter(item => item.eventId === selectedEventId);
             renderStats(filteredAttendees);
             renderParticipantList(filteredAttendees);
             renderAdminList(null, filteredAttendees);
+
+            // 重新載入圖標確保新增的 map-pin 渲染正確
+            lucide.createIcons();
         }
 
         // 更新下拉選單 UI
@@ -614,10 +645,10 @@
         window.handleEventSelection = function(val) {
             if (!val) return;
             selectedEventId = val;
-            isAuthorized = false; // 切換活動時，基於安全性，需重新解鎖主辦方
             
-            // 如果當前處於主辦方分頁，切換活動後自動退回到參加方分頁
+            // 安全機制：切換活動時自動上鎖，需重新驗證密碼才能進入主辦方
             if (activeRole === 'organizer') {
+                isAuthorized = false;
                 switchRole('participant');
             }
             
@@ -696,7 +727,7 @@
             renderAdminList(filtered);
         };
 
-        // 增減攜帶人數
+        // 增減人數按鈕
         window.adjustCount = function(val) {
             const input = document.getElementById('input-count');
             let current = parseInt(input.value) || 1;
@@ -705,7 +736,7 @@
             input.value = current;
         };
 
-        // 參加方出席登記送出
+        // 參加方登記出席送出 (解決「未能同步儲存」主要重構)
         window.handleAttendanceSubmit = async function(e) {
             e.preventDefault();
             const name = document.getElementById('input-name').value.trim();
@@ -714,12 +745,12 @@
             const count = parseInt(document.getElementById('input-count').value) || 1;
 
             if (!selectedEventId) {
-                showToast("當前無可報名的活動！", "warning");
+                showToast("目前沒有可登記的活動！", "warning");
                 return;
             }
 
             const newRecord = {
-                eventId: selectedEventId, // 關聯當前活動 ID
+                eventId: selectedEventId,
                 name,
                 className,
                 studentId,
@@ -727,14 +758,15 @@
                 timestamp: Date.now()
             };
 
+            // 確保 Firebase 認證存在才進行雲端儲存
             if (db && auth.currentUser) {
                 try {
                     const attendanceRef = collection(db, 'artifacts', appId, 'public', 'data', 'attendance');
                     await addDoc(attendanceRef, newRecord);
-                    showToast(`「${name}」登記出席成功！`, "success");
+                    showToast(`「${name}」登記成功！資料已同步儲存`, "success");
                 } catch (err) {
-                    console.error("同步登記失敗:", err);
-                    showToast("同步失敗，已轉為本機模擬暫存", "error");
+                    console.error("雲端同步失敗:", err);
+                    showToast("同步失敗，已轉為本機備份", "error");
                     localAddAttendance(newRecord);
                 }
             } else {
@@ -749,82 +781,93 @@
             document.getElementById('input-count').value = 1;
         };
 
-        // 本機出席暫存
+        // 本機出席暫存備份
         function localAddAttendance(record) {
             record.id = 'local_' + Math.random().toString(36).substr(2, 9);
             attendeesList.unshift(record);
             renderAll();
         }
 
-        // 刪除出席者紀錄
+        // 刪除出席紀錄 (支援同步)
         window.deleteRecord = function(id) {
             openCustomConfirm(
                 "刪除登記出席",
-                "確定要刪除這筆登記出席資料嗎？",
+                "確定要刪除這筆出席登記資料嗎？雲端將會同步移除且無法復原。",
                 async () => {
                     if (db && auth.currentUser && !id.startsWith('local_')) {
                         try {
                             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'attendance', id);
                             await deleteDoc(docRef);
-                            showToast("出席紀錄已自雲端刪除", "success");
+                            showToast("出席紀錄已從雲端移除", "success");
                         } catch (err) {
-                            showToast("刪除失敗", "error");
+                            showToast("雲端刪除失敗", "error");
                         }
                     } else {
                         attendeesList = attendeesList.filter(item => item.id !== id);
                         renderAll();
-                        showToast("本機出席資料已刪除", "info");
+                        showToast("本機出席資料已移除", "info");
                     }
                 }
             );
         };
 
-        // 主辦方更新活動設定
+        // 主辦方儲存活動設定與「統一登入密碼」
         window.handleSettingsUpdate = async function(e) {
             e.preventDefault();
             const title = document.getElementById('setting-title').value.trim();
             const date = document.getElementById('setting-date').value;
             const time = document.getElementById('setting-time').value;
+            const locationVal = document.getElementById('setting-location').value.trim();
             const adminPassword = document.getElementById('setting-password').value.trim();
 
-            const updatedConfig = { title, date, time, adminPassword };
+            const updatedEventConfig = { title, date, time, location: locationVal };
+            const updatedGlobalConfig = { adminPassword };
 
-            if (db && auth.currentUser && !selectedEventId.startsWith('local_')) {
+            if (db && auth.currentUser) {
                 try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'events', selectedEventId);
-                    await setDoc(docRef, updatedConfig, { merge: true });
-                    showToast("活動設定與專屬密碼已成功更新！", "success");
+                    // 1. 更新當前活動資料
+                    if (!selectedEventId.startsWith('local_')) {
+                        const eventDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'events', selectedEventId);
+                        await setDoc(eventDocRef, updatedEventConfig, { merge: true });
+                    }
+                    
+                    // 2. 更新全域統一密碼
+                    const globalSettingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'globalSettings', 'config');
+                    await setDoc(globalSettingsRef, updatedGlobalConfig, { merge: true });
+
+                    showToast("活動設定、地點與主辦方統一密碼更新成功！", "success");
                 } catch (err) {
-                    console.error("更新設定失敗:", err);
-                    showToast("雲端同步設定失敗", "error");
-                    updateLocalEvent(updatedConfig);
+                    console.error("同步更新設定失敗:", err);
+                    showToast("同步失敗，僅在本機套用變更", "error");
+                    localUpdateSettings(updatedEventConfig, updatedGlobalConfig);
                 }
             } else {
-                updateLocalEvent(updatedConfig);
-                showToast("本機活動設定已更新！", "success");
+                localUpdateSettings(updatedEventConfig, updatedGlobalConfig);
+                showToast("本機活動設定與密碼已更新！", "success");
             }
         };
 
-        function updateLocalEvent(config) {
-            eventsList = eventsList.map(e => e.id === selectedEventId ? { ...e, ...config } : e);
+        function localUpdateSettings(eventConfig, globalConf) {
+            eventsList = eventsList.map(e => e.id === selectedEventId ? { ...e, ...eventConfig } : e);
+            globalConfig = globalConf;
             renderAll();
         }
 
-        // 刪除當前活動與其名單
+        // 刪除整場活動與所有相關出席者
         window.deleteCurrentEvent = function() {
             if (eventsList.length <= 1) {
-                showToast("這是最後一個活動，不允許刪除！", "warning");
+                showToast("系統中必須保留至少一個活動！", "warning");
                 return;
             }
 
             const currentEvent = getCurrentEvent();
             openCustomConfirm(
                 "刪除整場活動",
-                `確定要徹底刪除「${currentEvent.title}」活動嗎？此動作亦會將該活動的所有出席者名單一併清除且不可復原！`,
+                `確定要徹底刪除活動「${currentEvent.title}」嗎？所有該活動的出席登記名單也將全數刪除。`,
                 async () => {
                     const toDeleteId = selectedEventId;
                     
-                    // 先切換到其他活動，避免畫面懸空
+                    // 先切換到另一個活動，避免畫面懸空
                     const otherEvent = eventsList.find(e => e.id !== toDeleteId);
                     selectedEventId = otherEvent.id;
                     isAuthorized = false;
@@ -836,54 +879,54 @@
                             const eventRef = doc(db, 'artifacts', appId, 'public', 'data', 'events', toDeleteId);
                             await deleteDoc(eventRef);
 
-                            // 2. 清除該活動對應的所有出席文檔
+                            // 2. 清除該活動下的所有出席文檔
                             const relatedAttendees = attendeesList.filter(item => item.eventId === toDeleteId);
                             for (const att of relatedAttendees) {
                                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'attendance', att.id));
                             }
 
-                            showToast("活動與名單已成功徹底刪除！", "success");
+                            showToast("活動及其出席名單已成功移除！", "success");
                         } catch (err) {
-                            console.error("刪除活動失敗:", err);
-                            showToast("部分雲端資料刪除失敗", "error");
+                            console.error("刪除雲端活動失敗:", err);
+                            showToast("雲端部分資料刪除失敗", "error");
                         }
                     } else {
                         // 本地模式刪除
                         eventsList = eventsList.filter(e => e.id !== toDeleteId);
                         attendeesList = attendeesList.filter(item => item.eventId !== toDeleteId);
                         renderAll();
-                        showToast("本機活動已成功徹底刪除！", "success");
+                        showToast("本機活動與出席數據已刪除", "info");
                     }
                 }
             );
         };
 
-        // 建立新活動處理
+        // 建立新活動 (密碼改為統一密碼，故不需在此設定密碼)
         window.handleCreateEventSubmit = async function(e) {
             e.preventDefault();
             const title = document.getElementById('new-event-title').value.trim();
             const date = document.getElementById('new-event-date').value;
             const time = document.getElementById('new-event-time').value;
-            const adminPassword = document.getElementById('new-event-password').value.trim();
+            const locationVal = document.getElementById('new-event-location').value.trim();
 
-            const newEvent = { title, date, time, adminPassword };
+            const newEvent = { title, date, time, location: locationVal };
 
             if (db && auth.currentUser) {
                 try {
                     const eventsRef = collection(db, 'artifacts', appId, 'public', 'data', 'events');
                     const docRef = await addDoc(eventsRef, newEvent);
                     
-                    selectedEventId = docRef.id; // 自動切換到新建立的活動
-                    isAuthorized = true; // 新建者自動解鎖授權狀態
+                    selectedEventId = docRef.id; // 自動切換至新活動
+                    isAuthorized = true; // 建立新活動的主辦方直接解鎖
                     toggleCreateEventModal(false);
                     switchRole('organizer');
                     showToast(`新活動「${title}」建立成功！`, "success");
                 } catch (err) {
-                    console.error("雲端建立活動失敗:", err);
-                    showToast("雲端同步失敗", "error");
+                    console.error("建立活動同步失敗:", err);
+                    showToast("同步失敗", "error");
                 }
             } else {
-                // 本地離線新建
+                // 本地模擬新建
                 const mockId = 'local_event_' + Math.random().toString(36).substr(2, 9);
                 eventsList.push({ id: mockId, ...newEvent });
                 selectedEventId = mockId;
@@ -898,10 +941,10 @@
             document.getElementById('new-event-title').value = '';
             document.getElementById('new-event-date').value = '';
             document.getElementById('new-event-time').value = '';
-            document.getElementById('new-event-password').value = '1234';
+            document.getElementById('new-event-location').value = '';
         };
 
-        // 控制彈出視窗
+        // 建立新活動 Modal 切換
         window.toggleCreateEventModal = function(show) {
             const modal = document.getElementById('create-event-modal');
             if (show) {
@@ -916,7 +959,7 @@
             toggleCreateEventModal(true);
         };
 
-        // 角色分頁切換
+        // 角色分頁切換邏輯
         window.switchRole = function(role) {
             const tabParticipant = document.getElementById('tab-participant');
             const tabOrganizer = document.getElementById('tab-organizer');
@@ -930,7 +973,7 @@
                 secOrganizer.classList.add('hidden');
                 activeRole = role;
             } else {
-                // 主辦方先檢查是否通過密碼授權
+                // 主辦方驗證：使用「統一管理密碼」
                 if (!isAuthorized) {
                     togglePasswordModal(true);
                 } else {
@@ -965,26 +1008,27 @@
             }
         };
 
+        // 驗證統一管理密碼
         window.verifyAdminPassword = function(e) {
             e.preventDefault();
             const input = document.getElementById('input-admin-password').value;
-            const currentEvent = getCurrentEvent();
-            const targetPassword = currentEvent.adminPassword || "1234";
+            const targetPassword = globalConfig.adminPassword || "1234"; // 檢查全域密碼
 
             if (input === targetPassword) {
                 isAuthorized = true;
                 togglePasswordModal(false);
                 performSwitchToOrganizer();
-                showToast("解鎖成功！已進入該活動之主辦方管理專區", "success");
+                showToast("管理員驗證成功！歡迎進入主辦方專區", "success");
             } else {
-                showToast("管理密碼錯誤，請重新輸入", "error");
+                showToast("管理密碼錯誤，請重新確認", "error");
             }
         };
 
+        // 安全鎖定
         window.lockOrganizer = function() {
             isAuthorized = false;
             switchRole('participant');
-            showToast("主辦方管理專區已安全上鎖", "info");
+            showToast("主辦方專區已上鎖", "info");
         };
 
         window.togglePasswordVisibility = function(inputId) {
@@ -994,13 +1038,13 @@
             lucide.createIcons();
         };
 
-        // 匯出功能
+        // 數據匯出統計成 CSV 格式 (防亂碼處理)
         window.exportToCSV = function() {
             const currentEvent = getCurrentEvent();
             const currentAttendees = attendeesList.filter(item => item.eventId === selectedEventId);
 
             if (currentAttendees.length === 0) {
-                showToast("此活動尚無出席資料可供匯出！", "warning");
+                showToast("當前活動尚無出席數據可供匯出！", "warning");
                 return;
             }
 
@@ -1026,10 +1070,10 @@
             link.click();
             document.body.removeChild(link);
             
-            showToast("出席統計報表匯出成功！", "success");
+            showToast("出席數據已成功匯出為 CSV 檔！", "success");
         };
 
-        // Firebase 設定與自訂彈窗輔助
+        // Firebase 手動設定彈出窗控制
         window.toggleSetupModal = function(show) {
             const modal = document.getElementById('setup-modal');
             if (show) modal.classList.remove('hidden');
@@ -1039,7 +1083,7 @@
         window.saveManualConfig = function() {
             const text = document.getElementById('firebase-config-input').value.trim();
             if (!text) {
-                showToast("請輸入配置！", "warning");
+                showToast("請輸入配置 JSON！", "warning");
                 return;
             }
 
@@ -1051,13 +1095,14 @@
                 }
 
                 localStorage.setItem('custom_firebase_config', JSON.stringify(parsed));
-                showToast("連線設定儲存成功！網頁重新載入中...", "success");
+                showToast("設定成功！網頁重新載入中...", "success");
                 setTimeout(() => { window.location.reload(); }, 1500);
             } catch (err) {
-                showToast("JSON 解析失敗，請確認雙引號語法格式", "error");
+                showToast("JSON 解析失敗，請檢查雙引號格式", "error");
             }
         };
 
+        // 自訂確認視窗機制 (無 Alert 阻擋)
         function openCustomConfirm(title, message, callback) {
             document.getElementById('confirm-title').innerText = title;
             document.getElementById('confirm-message').innerText = message;
@@ -1076,6 +1121,7 @@
             pendingConfirmCallback = null;
         };
 
+        // HTML 轉義防堵 XSS
         function escapeHTML(str) {
             if (!str) return '';
             return str.replace(/[&<>'"]/g, 
@@ -1083,6 +1129,7 @@
             );
         }
 
+        // 自訂 Toast 精美通知
         function showToast(message, type = "info") {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
